@@ -11,3 +11,5 @@
 python /scratch/assignment1/test_scripts/pi_calculation_tester.pyc --execPath=/home/xuetianw/pi_calculation_parallel
 
 #ls /scratch/assignment1/test_scripts/*tester.pyc
+
+srun cp /scratch/assignment1/test_scripts/pi_calculation_tester.pyc ./home/xuetianw/
