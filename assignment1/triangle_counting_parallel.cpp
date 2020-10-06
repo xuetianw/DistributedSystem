@@ -36,9 +36,10 @@ uintV countTriangles(uintV* array1, uintE len1, uintV* array2, uintE len2,
 
 struct res_data {
     long* triangle_count_arr;
-    long* vertices_each_worker_arr;
+    long* vertices_to_calculate_arr;
     double* time_taken_s_arr;
     long triangles_total;
+//    long local_total;
 };
 
 struct arg_struct {
@@ -58,14 +59,26 @@ void* calculatingFunction(void* data) {
     Graph& g = args.graph;
     res_data& resData = args.resData;
 
-    uint num_of_verteces = resData.vertices_each_worker_arr[args.thread_id];
+    uint num_of_verteces = resData.vertices_to_calculate_arr[args.thread_id];
 
-    std::cout << "num_of_verteces " << num_of_verteces << std::endl;
+//    std::cout << "num_of_verteces " << num_of_verteces << std::endl;
 
-    uintV starting_vertex = args.thread_id * num_of_verteces;
+    uintV starting_vertex;
+    if (args.thread_id == 0) {
+        starting_vertex = args.thread_id * resData.vertices_to_calculate_arr[0];
+    } else {
+        starting_vertex = args.thread_id * resData.vertices_to_calculate_arr[args.thread_id - 1];
+    }
     uintV finishing_vex = starting_vertex + num_of_verteces - 1;
 
     uint triangle_count = 0;
+//    printf("args.thread_id : %d starting_vertex %d: finishing_vex %d: \n",
+//           args.thread_id, starting_vertex, finishing_vex);
+//
+//    mtx.lock();
+//    resData.local_total += finishing_vex - starting_vertex + 1;
+//    mtx.unlock();
+//
     for (uintV u = starting_vertex; u <= finishing_vex; u++) {
         // For each outNeighbor v, find the intersection of inNeighbor(u) and
         // outNeighbor(v)
@@ -108,11 +121,23 @@ void triangleCountSerial(Graph& g, uint n_workers) {
     // Create threads and distribute the work across T threads
     // -------------------------------------------------------------------
 
-    std::thread threads[n_workers];
     res_data resData{};
     resData.time_taken_s_arr = new double[n_workers];
-    resData.vertices_each_worker_arr = new long[n_workers];
+    resData.vertices_to_calculate_arr = new long[n_workers];
     resData.triangle_count_arr = new long[n_workers];
+
+    if (n % n_workers == 0) {
+        for (int i = 0; i < n_workers; i++) {
+            resData.vertices_to_calculate_arr[i] = n / n_workers;
+        }
+    } else {
+        for (int i = 0; i < n_workers - 1; i++) {
+            resData.vertices_to_calculate_arr[i] = n / n_workers;
+        }
+        resData.vertices_to_calculate_arr[n_workers - 1] = n - (n / n_workers) * (n_workers - 1);
+    }
+
+    std::thread threads[n_workers];
 
     for (int i = 0; i < n_workers; i++) {
 //      pthread_create(&pthread_ts[i], nullptr, calculatingFunction, &argS);
@@ -121,16 +146,6 @@ void triangleCountSerial(Graph& g, uint n_workers) {
         threads[i] = std::thread{calculatingFunction, argS};
     }
 
-    if (n % n_workers == 0) {
-        for (int i = 0; i < n_workers; i++) {
-            resData.vertices_each_worker_arr[i] = n / n_workers;
-        }
-    } else {
-        for (int i = 0; i < n_workers - 1; i++) {
-            resData.vertices_each_worker_arr[i] = n / n_workers;
-        }
-        resData.vertices_each_worker_arr[n_workers - 1] = n - (n / n_workers) * (n_workers - 1);
-    }
 
     std::cout << "thread_id, triangle_count, time_taken\n";
 
@@ -152,10 +167,18 @@ void triangleCountSerial(Graph& g, uint n_workers) {
     std::cout << "Time taken (in seconds) : " << std::setprecision(TIME_PRECISION)
               << time_taken << "\n";
 
-
-    delete [] resData.triangle_count_arr;
-    delete [] resData.time_taken_s_arr;
-    delete [] resData.vertices_each_worker_arr;
+//    uint test = 0;
+////    for (int i = 0; i < n_workers;i ++) {
+////        test += resData.vertices_to_calculate_arr[i];
+////    }
+//
+////    printf("vervices calculated: %ld\n", resData.local_total);
+//
+//
+//
+//    delete [] resData.triangle_count_arr;
+//    delete [] resData.time_taken_s_arr;
+//    delete [] resData.vertices_to_calculate_arr;
 }
 
 int main(int argc, char* argv[]) {
