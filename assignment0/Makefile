@@ -1,22 +1,15 @@
-
-ifdef USE_INT
-MACRO = -DUSE_INT
-endif
-
 #compiler setup
 CXX = g++
-CXXFLAGS = -std=c++14 -O3 -pthread $(MACRO)
+CXXFLAGS = -std=c++14 -march=native -pthread -O3 
 
-COMMON= core/utils.h core/cxxopts.h core/get_time.h core/graph.h core/quick_sort.h
-SERIAL= pi_calculation triangle_counting
-PARALLEL= pi_calculation_parallel triangle_counting_parallel
-ALL= $(SERIAL) $(PARALLEL)
-
+COMMON= core/utils.h core/cxxopts.h core/get_time.h core/circular_queue.h
+SOLUTION= solution.cpp solution.h
+ALL= producer_consumer
 
 all : $(ALL)
 
-% : %.cpp $(COMMON)
-	$(CXX) $(CXXFLAGS) -o $@ $<
+producer_consumer: driver.cpp ${COMMON} ${SOLUTION}
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 .PHONY : clean
 
