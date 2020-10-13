@@ -59,7 +59,7 @@ void* calculatingFunction(void* data) {
     Graph& g = args.graph;
     res_data& resData = args.resData;
 
-    uint num_of_verteces = resData.vertices_to_calculate_arr[args.thread_id];
+    uint num_of_vertices = resData.vertices_to_calculate_arr[args.thread_id];
 
 //    std::cout << "num_of_verteces " << num_of_verteces << std::endl;
 
@@ -69,7 +69,7 @@ void* calculatingFunction(void* data) {
     } else {
         starting_vertex = args.thread_id * resData.vertices_to_calculate_arr[args.thread_id - 1];
     }
-    uintV finishing_vex = starting_vertex + num_of_verteces - 1;
+    uintV finishing_vex = starting_vertex + num_of_vertices - 1;
 
     uint triangle_count = 0;
 //    printf("args.thread_id : %d starting_vertex %d: finishing_vex %d: \n",
@@ -126,16 +126,12 @@ void triangleCountSerial(Graph& g, uint n_workers) {
     resData.vertices_to_calculate_arr = new long[n_workers];
     resData.triangle_count_arr = new long[n_workers];
 
-    if (n % n_workers == 0) {
-        for (int i = 0; i < n_workers; i++) {
-            resData.vertices_to_calculate_arr[i] = n / n_workers;
-        }
-    } else {
-        for (int i = 0; i < n_workers - 1; i++) {
-            resData.vertices_to_calculate_arr[i] = n / n_workers;
-        }
-        resData.vertices_to_calculate_arr[n_workers - 1] = n - (n / n_workers) * (n_workers - 1);
+    for (int i = 0; i < n_workers - 1; i++) {
+        resData.vertices_to_calculate_arr[i] = n / n_workers;
     }
+    resData.vertices_to_calculate_arr[n_workers - 1] =
+            n % n_workers == 0 ? n / n_workers : n - (n / n_workers) * (n_workers - 1);
+
 
     std::thread threads[n_workers];
 
@@ -176,9 +172,9 @@ void triangleCountSerial(Graph& g, uint n_workers) {
 //
 //
 //
-//    delete [] resData.triangle_count_arr;
-//    delete [] resData.time_taken_s_arr;
-//    delete [] resData.vertices_to_calculate_arr;
+    delete[] resData.triangle_count_arr;
+    delete[] resData.time_taken_s_arr;
+    delete[] resData.vertices_to_calculate_arr;
 }
 
 int main(int argc, char* argv[]) {
@@ -198,6 +194,8 @@ int main(int argc, char* argv[]) {
     auto cl_options = options.parse(argc, argv);
     uint n_workers = cl_options["nWorkers"].as<uint>();
     std::string input_file_path = cl_options["inputFile"].as<std::string>();
+//    uint n_workers = 10;
+//    std::string input_file_path = "/home/fred/DistributedSystemProject/assignment1/inputfiles/lj";
     std::cout << std::fixed;
     std::cout << "Number of workers : " << n_workers << "\n";
 

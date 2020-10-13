@@ -41,8 +41,6 @@ void* calculatingFunction(void* data) {
 //    std::cout << "started thread : " << args.thread_id << std::endl;
 
     uint points_to_generate_vec = resData.points_to_generate;
-
-
     uint random_seed = args.thread_id;
 
 //    std::cout << "points_to_generate " << points_to_generate_vec << std::endl;
@@ -60,7 +58,6 @@ void* calculatingFunction(void* data) {
     pthread_mutex_lock(&mutex);
 
     resData.circle_points[args.thread_id] = circle_count;
-
     resData.total_points_in_circle += circle_count;
 
     double time_taken = serial_timer.stop();
@@ -74,8 +71,7 @@ void* calculatingFunction(void* data) {
 void piCalculation(uint n, uint n_workers) {
     timer serial_timer;
     double time_taken = 0.0;
-//    uint random_seed = 1;
-//
+
     serial_timer.start();
     // Create threads and distribute the work across T threads
     // -------------------------------------------------------------------
@@ -91,16 +87,12 @@ void piCalculation(uint n, uint n_workers) {
     for (uint i = 0; i < n_workers; i++) {
 //        printf("test argS.thread_id : %d\n", argS.thread_id);
         arg_struct* argS = new arg_struct{resData};
-
         argS->thread_id = i;
         pthread_create(&pthread_ts[i], nullptr, calculatingFunction, argS);
 //        printf("test2 argS.thread_id : %d\n", argS.thread_id);
     }
 
 
-
-//    uint circle_points = get_points_in_circle(n, random_seed);
-//    double pi_value = 4.0 * (double) circle_points / (double) n;
     // -------------------------------------------------------------------
 
     std::cout << "thread_id, points_generated, circle_points, time_taken\n";
@@ -144,10 +136,10 @@ int main(int argc, char* argv[]) {
             });
 
     auto cl_options = options.parse(argc, argv);
-//    uint n_points = cl_options["nPoints"].as<uint>();
-//    uint n_workers = cl_options["nWorkers"].as<uint>();
-    uint n_points = 12345670;
-    uint n_workers = 1000;
+    uint n_points = cl_options["nPoints"].as<uint>();
+    uint n_workers = cl_options["nWorkers"].as<uint>();
+//    uint n_points = 12345679;
+//    uint n_workers = 1000;
     std::cout << std::fixed;
     std::cout << "Number of points : " << n_points << "\n";
     std::cout << "Number of workers : " << n_workers << "\n";
