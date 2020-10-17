@@ -39,7 +39,6 @@ struct res_data {
     long* vertices_to_calculate_arr;
     double* time_taken_s_arr;
     long triangles_total;
-//    long local_total;
 };
 
 struct arg_struct {
@@ -47,11 +46,10 @@ struct arg_struct {
 
     Graph& graph;
     res_data& resData;
-    int thread_id;
 };
 
 
-void* calculatingFunction(void* data) {
+void* calculatingFunction(void* data, int thread_id) {
     timer serial_timer;
     serial_timer.start();
 
@@ -59,25 +57,14 @@ void* calculatingFunction(void* data) {
     Graph& g = args.graph;
     res_data& resData = args.resData;
 
-    uint num_of_vertices = resData.vertices_to_calculate_arr[args.thread_id];
+    uint num_of_vertices = resData.vertices_to_calculate_arr[thread_id];
 
-//    std::cout << "num_of_verteces " << num_of_verteces << std::endl;
+    uintV starting_vertex = thread_id == 0 ? 0 :
+            thread_id * resData.vertices_to_calculate_arr[thread_id - 1];
 
-    uintV starting_vertex;
-    if (args.thread_id == 0) {
-        starting_vertex = args.thread_id * resData.vertices_to_calculate_arr[0];
-    } else {
-        starting_vertex = args.thread_id * resData.vertices_to_calculate_arr[args.thread_id - 1];
-    }
     uintV finishing_vex = starting_vertex + num_of_vertices - 1;
-
     uint triangle_count = 0;
-//    printf("args.thread_id : %d starting_vertex %d: finishing_vex %d: \n",
-//           args.thread_id, starting_vertex, finishing_vex);
-//
-//    mtx.lock();
-//    resData.local_total += finishing_vex - starting_vertex + 1;
-//    mtx.unlock();
+
 //
     for (uintV u = starting_vertex; u <= finishing_vex; u++) {
         // For each outNeighbor v, find the intersection of inNeighbor(u) and
@@ -93,18 +80,16 @@ void* calculatingFunction(void* data) {
     }
 
 
-//    pthread_mutex_lock(&mutex);
     mtx.lock();
 
-    resData.triangle_count_arr[args.thread_id] = triangle_count;
+    resData.triangle_count_arr[thread_id] = triangle_count;
     resData.triangles_total += triangle_count;
 
     double time_taken = serial_timer.stop();
-    resData.time_taken_s_arr[args.thread_id] = time_taken;
+    resData.time_taken_s_arr[thread_id] = time_taken;
 
     mtx.unlock();
 
-//    pthread_mutex_unlock(&mutex);
     delete (arg_struct*) data;
 }
 
@@ -135,11 +120,9 @@ void triangleCountSerial(Graph& g, uint n_workers) {
 
     std::thread threads[n_workers];
 
+    arg_struct argS{resData, g};
     for (int i = 0; i < n_workers; i++) {
-//      pthread_create(&pthread_ts[i], nullptr, calculatingFunction, &argS);
-        arg_struct* argS = new arg_struct{resData, g};
-        argS->thread_id = i;
-        threads[i] = std::thread{calculatingFunction, argS};
+        threads[i] = std::thread{calculatingFunction, &argS, i};
     }
 
 
@@ -163,15 +146,6 @@ void triangleCountSerial(Graph& g, uint n_workers) {
     std::cout << "Time taken (in seconds) : " << std::setprecision(TIME_PRECISION)
               << time_taken << "\n";
 
-//    uint test = 0;
-////    for (int i = 0; i < n_workers;i ++) {
-////        test += resData.vertices_to_calculate_arr[i];
-////    }
-//
-////    printf("vervices calculated: %ld\n", resData.local_total);
-//
-//
-//
     delete[] resData.triangle_count_arr;
     delete[] resData.time_taken_s_arr;
     delete[] resData.vertices_to_calculate_arr;
@@ -193,9 +167,9 @@ int main(int argc, char* argv[]) {
 
     auto cl_options = options.parse(argc, argv);
     uint n_workers = cl_options["nWorkers"].as<uint>();
-    std::string input_file_path = cl_options["inputFile"].as<std::string>();
+//    std::string input_file_path = cl_options["inputFile"].as<std::string>();
 //    uint n_workers = 10;
-//    std::string input_file_path = "/home/fred/DistributedSystemProject/assignment1/inputfiles/lj";
+    std::string input_file_path = "/home/fred/DistributedSystemProject/assignment1/inputfiles/lj";
     std::cout << std::fixed;
     std::cout << "Number of workers : " << n_workers << "\n";
 

@@ -9,8 +9,6 @@
 
 uint c_const = (uint) RAND_MAX + (uint) 1;
 
-//pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-//pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
 std::mutex mtx;           // mutex for critical section
 
 inline double get_random_coordinate(uint* random_seed) {
@@ -28,19 +26,17 @@ struct arg_struct {
     arg_struct(res_data& resData) : resData(resData) {}
 
     res_data& resData;
-    int thread_id;
 };
 
 
-void* calculatingFunction(void* data) {
+void* calculatingFunction(void* data, int thread_id) {
     timer serial_timer;
     serial_timer.start();
 
     arg_struct& args = *(arg_struct*) data;;
-
     res_data& resData = args.resData;
-    uint points_to_generate = resData.points_to_generate_arr[args.thread_id];
-    uint random_seed = args.thread_id;
+    uint points_to_generate = resData.points_to_generate_arr[thread_id];
+    uint random_seed = thread_id;
 
     uint circle_count = 0;
     double x_coord, y_coord;
@@ -54,13 +50,12 @@ void* calculatingFunction(void* data) {
 
 
     mtx.lock();
-    resData.circle_points[args.thread_id] = circle_count;
+    resData.circle_points[thread_id] = circle_count;
     resData.total_points_in_circle += circle_count;
     double time_taken = serial_timer.stop();
-    resData.time_taken_s[args.thread_id] = time_taken;
+    resData.time_taken_s[thread_id] = time_taken;
 
     mtx.unlock();
-    delete (arg_struct*) data;
 }
 
 
@@ -89,10 +84,9 @@ void piCalculation(uint n, uint n_workers) {
     resData.time_taken_s = new double[n_workers];
 
 
+    arg_struct argS{resData};
     for (uint i = 0; i < n_workers; i++) {
-        arg_struct* argS = new arg_struct{resData};
-        argS->thread_id = i;
-        threads[i] = std::thread{calculatingFunction, argS};
+        threads[i] = std::thread{calculatingFunction, &argS, i};
     }
 
     // -------------------------------------------------------------------
