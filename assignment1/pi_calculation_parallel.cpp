@@ -60,8 +60,6 @@ void* calculatingFunction(void* data, int thread_id) {
 
 
 void piCalculation(uint n, uint n_workers) {
-
-
     timer serial_timer;
     double time_taken = 0.0;
 
@@ -69,7 +67,7 @@ void piCalculation(uint n, uint n_workers) {
     // Create threads and distribute the work across T threads
     // -------------------------------------------------------------------
 
-    std::thread threads[n_workers];
+//    std::thread threads[n_workers];
 
     res_data resData{};
     resData.points_to_generate_arr = new uint[n_workers];
@@ -83,11 +81,11 @@ void piCalculation(uint n, uint n_workers) {
     resData.circle_points = new uint[n_workers];
     resData.time_taken_s = new double[n_workers];
 
-
     arg_struct argS{resData};
-    for (uint i = 0; i < n_workers; i++) {
-        threads[i] = std::thread{calculatingFunction, &argS, i};
-    }
+    std::vector<std::thread> threads;
+    threads.reserve(n_workers);
+    for (uint i = 0; i < n_workers; i++)
+        threads.emplace_back(calculatingFunction, &argS, i);
 
     // -------------------------------------------------------------------
 
@@ -119,11 +117,9 @@ void piCalculation(uint n, uint n_workers) {
     delete[] resData.circle_points;
     delete[] resData.time_taken_s;
     delete[] resData.points_to_generate_arr;
-
 }
 
 int main(int argc, char* argv[]) {
-
 
 
     // Initialize command line arguments

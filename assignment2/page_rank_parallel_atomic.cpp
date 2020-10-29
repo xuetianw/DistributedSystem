@@ -55,7 +55,7 @@ std::mutex mtx;           // mutex for critical section
 //};
 
 struct res_data {
-    uintV* vertices_to_calculate_arr;
+    uintV* num_vertices_arr;
     double* time_taken_s;
     uintV max_iterations;
 };
@@ -81,10 +81,10 @@ void* calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRa
     res_data& resData = args.resData;
     uintV max_iterations = resData.max_iterations;
 
-    uint num_of_vertices = resData.vertices_to_calculate_arr[thread_id];
+    uint num_of_vertices = resData.num_vertices_arr[thread_id];
 
     uintV starting_vertex = thread_id == 0 ? 0 :
-                            thread_id * resData.vertices_to_calculate_arr[thread_id - 1];
+                            thread_id * resData.num_vertices_arr[thread_id - 1];
 
     uintV ending_vertex= starting_vertex + num_of_vertices - 1;
 
@@ -122,7 +122,7 @@ void* calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRa
 }
 
 
-void pageRankSerial(Graph& g, int max_iterations, int n_workers) {
+void pageRankVertexBasedParallel(Graph& g, int max_iterations, int n_workers) {
     uintV n = g.n_;
     double time_taken = 0.0;
     timer t1;
@@ -136,31 +136,23 @@ void pageRankSerial(Graph& g, int max_iterations, int n_workers) {
         pr_next[i] = 0.0;
     }
 
-    // Push based pagerank
-    // Create threads and distribute the work across T threads
-    // -------------------------------------------------------------------
-
-
     std::thread threads[n_workers];
-//    barrier_type b{n_workers};
     CustomBarrier b{n_workers};
-//    b.active_worker_count = n_workers;
 
     res_data resData{};
-    resData.vertices_to_calculate_arr = new uintV[n_workers];
-    for (int i = 0; i < n_workers - 1; i++) {
-        resData.vertices_to_calculate_arr[i] = n / n_workers;
-    }
-    resData.vertices_to_calculate_arr[n_workers - 1] =
+    resData.num_vertices_arr = new uintV[n_workers];
+    for (int i = 0; i < n_workers - 1; i++)
+        resData.num_vertices_arr[i] = n / n_workers;
+
+    resData.num_vertices_arr[n_workers - 1] =
             n % n_workers == 0 ? n / n_workers : n - (n / n_workers) * (n_workers - 1);
     resData.max_iterations = max_iterations;
     resData.time_taken_s = new double[n_workers];
 
     arg_struct aStruct{resData, b, g};
 
-    for (int i = 0; i < n_workers; i++) {
+    for (int i = 0; i < n_workers; i++)
         threads[i] = std::thread{calculatingFunction, pr_curr, pr_next, &aStruct, i};
-    }
 
     std::cout << "thread_id, time_taken\n";
 
@@ -182,7 +174,7 @@ void pageRankSerial(Graph& g, int max_iterations, int n_workers) {
     delete[] pr_next;
 
     delete[] resData.time_taken_s;
-    delete[] resData.vertices_to_calculate_arr;
+    delete[] resData.num_vertices_arr;
 }
 
 int main(int argc, char* argv[]) {
@@ -225,7 +217,7 @@ int main(int argc, char* argv[]) {
     g.readGraphFromBinary<int>(input_file_path);
     std::cout << "Created graph\n";
 
-    pageRankSerial(g, max_iterations, n_workers);
+    pageRankVertexBasedParallel(g, max_iterations, n_workers);
 
 //    std::cout << "Number of workers : \n" << n_workers << "\n";
 

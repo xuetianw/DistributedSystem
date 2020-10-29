@@ -42,7 +42,7 @@ void* producerFunction(void* _arg) {
                 // The queue is no longer empty
                 // Signal all consumers indicating queue is not empty
                 pthread_cond_broadcast(&cond2);
-                printf("signal cond2 \n");
+//                printf("signal cond2 \n");
             }
 //            pthread_mutex_lock(&mutex);
 
@@ -52,9 +52,9 @@ void* producerFunction(void* _arg) {
 
         } else {
             // production_buffer is full, so block on conditional variable waiting for consumer to signal.
-            printf("buffer full \n");
+//            printf("buffer full \n");
             pthread_cond_wait(&cond1, &queue_mutex);
-            printf("producerFunction awaken because buffer not empty \n");
+//            printf("producerFunction awaken because buffer not empty \n");
 
 //            res_data.circularQueue.enqueue(item);
 //            value_produced += item;
@@ -79,8 +79,8 @@ void* producerFunction(void* _arg) {
 //    printf("producer work done \n");
     // The producer that was last active (can be determined using `active_producer_count`) will keep signalling the consumers until all consumers have finished (can be determined using `active_consumer_count`).
     if (res_data.active_producer_count == 0) {
-        printf("last producer work done \n");
-        printf("items_produced value is now: %ld\n", items_produced);
+//        printf("last producer work done \n");
+//        printf("items_produced value is now: %ld\n", items_produced);
         pthread_cond_broadcast(&cond2);
     }
     printf("producer done\n");
@@ -124,7 +124,7 @@ void* consumerFunction(void* _arg) {
                 // Signal all producers indicating
                 // is not full
                 pthread_cond_broadcast(&cond1);
-                printf("signal cond1 \n");
+//                printf("signal cond1 \n");
             }
 
 //            pthread_mutex_lock(&mutex1);
@@ -141,7 +141,7 @@ void* consumerFunction(void* _arg) {
             // This is the exit condition for consumers, and at this point consumers should decrement `active_consumer_count`.
             // Scenario 2: The queue is not empty and/or the producers are active. Continue consuming.
 
-            printf("buffer empty \n");
+//            printf("buffer empty \n");
 
 //            if (!res_data.circularQueue.isEmpty() && res_data.active_producer_count == 0) {
 //                while (productionQueue.dequeue(&item)) {
@@ -153,15 +153,15 @@ void* consumerFunction(void* _arg) {
 
 
             if (res_data.active_producer_count != 0) {
-                printf("11111111111111111 \n");
+//                printf("11111111111111111 \n");
                 pthread_cond_wait(&cond2, &queue_mutex);
             }
 
 
-            printf("consumerFunction awaken because buffer is no longer empty or last buffer producer work done \n");
+//            printf("consumerFunction awaken because buffer is no longer empty or last buffer producer work done \n");
 
             if (res_data.active_producer_count == 0 && res_data.circularQueue.isEmpty()) {
-                printf("test\n");
+//                printf("test\n");
                 pthread_mutex_unlock(&queue_mutex);
                 break;
             }
@@ -192,7 +192,7 @@ void* consumerFunction(void* _arg) {
 
     pthread_mutex_unlock(&consumer_mutex);
 
-    printf("buffer consumer work done \n");
+//    printf("buffer consumer work done \n");
 }
 
 ProducerConsumerProblem::ProducerConsumerProblem(long _n_items,
@@ -224,9 +224,9 @@ ProducerConsumerProblem::ProducerConsumerProblem(long _n_items,
 
     active_producer_count = _n_producers;
     active_consumer_count = _n_consumers;
-    printf("active_producer_count %d \n", active_producer_count);
-    printf("active_consumer_count %d \n", active_consumer_count);
-    printf("\n");
+//    printf("active_producer_count %d \n", active_producer_count);
+//    printf("active_consumer_count %d \n", active_consumer_count);
+//    printf("\n");
     // Initialize all mutex and conditional variables here.
 }
 
@@ -237,13 +237,6 @@ ProducerConsumerProblem::~ProducerConsumerProblem() {
     // Destroy all mutex and conditional variables here.
 }
 
-
-void* PrintHello(void* threadid) {
-    long tid;
-    tid = (long) threadid;
-    std::cout << "Hello World! Thread ID, " << tid << std::endl;
-    pthread_exit(NULL);
-}
 
 
 void ProducerConsumerProblem::startProducers() {
@@ -262,7 +255,7 @@ void ProducerConsumerProblem::startConsumers() {
 
     for (int i = 0; i < n_consumers; i++) {
         pthread_create(&producer_threads[i], nullptr, consumerFunction, consumer_res_s[i]);
-        printf("consumer number : %d\n", i);
+//        printf("consumer number : %d\n", i);
     }
 }
 
@@ -271,9 +264,9 @@ void ProducerConsumerProblem::joinProducers() {
     // Join the producer threads with the main thread using pthread_join
     for (int i = 0; i < n_producers; i++) {
         pthread_join(producer_threads[i], (void**) producer_res_s[i]);
-        printf("done Joining Producers %d \n", i);
+//        printf("done Joining Producers %d \n", i);
     }
-    std::cout << "done Joining Producers\n";
+//    std::cout << "done Joining Producers\n";
 }
 
 void ProducerConsumerProblem::joinConsumers() {
@@ -281,10 +274,10 @@ void ProducerConsumerProblem::joinConsumers() {
     // Join the consumer threads with the main thread using pthread_join
     for (int i = 0; i < n_consumers; i++) {
         pthread_join(consumer_threads[i], (void**) consumer_res_s[i]);
-        printf("done Joining Consumers %d \n", i);
+//        printf("done Joining Consumers %d \n", i);
     }
 
-    std::cout << "done Joining Consumers\n";
+//    std::cout << "done Joining Consumers\n";
 }
 
 void ProducerConsumerProblem::printStats() {

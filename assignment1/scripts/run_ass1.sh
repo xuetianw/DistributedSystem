@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #SBATCH --job-name=test
-#SBATCH --output=ass_res.txt
+#SBATCH --output=ass1_res.txt
 #
 #SBATCH --ntasks=1
 #SBATCH --time=10:00

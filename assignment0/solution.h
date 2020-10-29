@@ -9,7 +9,7 @@ struct res_data_struct {
     long n_items;
     int& active_producer_count;
     int& active_consumer_count;
-//    int puc_csm_id;
+    int puc_csm_id;
 
     long items_consumed;
     long items_produced;

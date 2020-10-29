@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     int n_consumers = cl_options["nConsumers"].as<int>();
     long queue_size = cl_options["bufferSize"].as<long>();
 
-    ProducerConsumerProblem solution(10000, 3, 3,
+    ProducerConsumerProblem solution(n_items, n_producers, n_consumers,
                                      queue_size);
 
     timer t1;
