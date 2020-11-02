@@ -140,7 +140,7 @@ void triangleCountEdgeBasedParallel(Graph& g, uint n_workers) {
 }
 
 
-// strategy 1
+// strategy 1 vertices-based
 
 
 struct arg_struct {
@@ -187,7 +187,7 @@ void* calculatingFunction(void* data, int thread_id) {
 
     mtx.lock();
 
-    resData.triangles_total = resData.triangles_total + 1;
+    resData.triangles_total += triangle_count;
     mtx.unlock();
 
     double time_taken = serial_timer.stop();
@@ -195,7 +195,7 @@ void* calculatingFunction(void* data, int thread_id) {
 
 }
 
-// strategy 1 vertices-based
+
 
 void triangleVertexBasedCountParallel(Graph& g, uint n_workers) {
     uintV n = g.n_;
