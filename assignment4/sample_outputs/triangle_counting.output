@@ -1,0 +1,12 @@
+Number of workers : 4
+Reading graph
+Created graph
+thread_id, num_vertices, num_edges, triangle_count, time_taken
+0, 524620, 1465404, 189690, 0.112731
+1, 481871, 1354495, 177364, 0.112728
+2, 478386, 1346101, 176832, 0.112701
+3, 486404, 1367214, 180170, 0.112689
+Number of triangles : 724056
+Number of unique triangles : 241352
+Time taken (in seconds) : 0.112896
+

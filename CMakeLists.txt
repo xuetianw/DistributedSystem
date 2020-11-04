@@ -90,3 +90,18 @@ add_executable(page_rank_parallel_atomic_ass3
         )
 
 target_link_libraries(page_rank_parallel_atomic_ass3 pthread)
+
+
+add_executable(triangle_counting_parallel_ass4
+        assignment4/triangle_counting_parallel_ass4.cpp
+        #        assignment0/solution.cpp
+        )
+
+target_link_libraries(triangle_counting_parallel_ass4 pthread)
+
+add_executable(page_rank_parallel_ass4
+        assignment4/page_rank_parallel_ass4.cpp
+        #        assignment0/solution.cpp
+        )
+
+target_link_libraries(page_rank_parallel_ass4 pthread)

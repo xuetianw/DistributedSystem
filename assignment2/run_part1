@@ -1,0 +1,1 @@
+python /scratch/assignment2/test_scripts/page_rank_lock_tester.pyc --execPath=/home/xuetianw/page_rank_parallel

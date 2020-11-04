@@ -66,7 +66,7 @@ void* edgeCalculatingFunction(void* data, int thread_id, std::vector<std::pair<u
 
     double time_taken = serial_timer.stop();
     resData.time_taken_s_arr[thread_id] = time_taken;
-    resData.num_vertices_arr[thread_id] = 0;
+    resData.num_vertices_arr[thread_id] = 0; //   (Print 0 for edge-based task decomposition)
 
     mtx.unlock();
 }
@@ -158,7 +158,7 @@ void* calculatingFunction(void* data, int thread_id) {
     arg_struct& args = *(arg_struct*) data;;
     Graph& g = args.graph;
     res_data& resData = args.resData;
-
+    resData.edge_arr[thread_id] = 0;
     uint num_of_vertices = resData.num_vertices_arr[thread_id];
 
     uintV starting_vertex = thread_id == 0 ? 0 :

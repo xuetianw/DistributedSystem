@@ -1,0 +1,14 @@
+Using FLOAT
+Number of workers : 4
+Granularity : 1000
+Iterations : 20
+Reading graph
+Created graph
+thread_id, num_vertices, num_edges, barrier1_time, barrier2_time, getNextVertex_time, total_time
+0, 9931405, 28777986, 0.000529, 0.000593, 0.001275, 0.599062
+1, 9924967, 28779838, 0.000538, 0.000571, 0.001242, 0.599059
+2, 9776843, 26450738, 0.000575, 0.000563, 0.001234, 0.599035
+3, 9792405, 26655718, 0.000545, 0.000617, 0.001090, 0.599021
+Sum of page rank : 1966528.125000
+Time taken (in seconds) : 0.599281
+
