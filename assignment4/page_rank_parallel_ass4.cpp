@@ -23,8 +23,6 @@ typedef float PageRankType;
 
 std::mutex buffer_mtx;
 
-std::unordered_map<int, int> mymap;
-
 struct res_data {
     uintV* edge_arr;
     uintV* edges_processed;
