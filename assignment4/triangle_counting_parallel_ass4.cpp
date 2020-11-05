@@ -42,7 +42,7 @@ struct res_data {
     long* num_vertices_arr;
     double* time_taken_s_arr;
     long triangles_total;
-    int32_t starting_index;
+    std::atomic<int32_t> starting_index;
 
     int32_t getNextVertexToBeProcessed() {
         buffer_mtx.lock();

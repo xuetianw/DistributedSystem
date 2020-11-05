@@ -23,25 +23,24 @@ typedef float PageRankType;
 
 std::mutex buffer_mtx;
 
+std::unordered_map<int, int> mymap;
+
 struct res_data {
     uintV* edge_arr;
     uintV* edges_processed;
-    uintV* barrier1_time_arr;
-    uintV* barrier2_time_arr;
+    double* barrier1_time_arr;
+    double* barrier2_time_arr;
     double* time_taken_s;
+    double* getNextVertex_time_s;
     uintV* vertices_processed;
     uintV max_iterations;
 
-    int32_t starting_index;
+    std::atomic<int32_t> starting_index;
 
     int32_t getNextVertexToBeProcessed() {
-        buffer_mtx.lock();
-        int32_t copy = --starting_index;
-        buffer_mtx.unlock();
-        return copy;
+        return std::atomic_fetch_sub(&starting_index, 1);
     }
 };
-
 
 struct arg_struct {
     arg_struct(res_data& resData, CustomBarrier& b, Graph& graph) : resData(resData), graph(graph), b(b) {}
@@ -53,10 +52,8 @@ struct arg_struct {
 
 std::mutex mutex;
 
-
 void*
 calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType>* pr_next, void* data, int thread_id) {
-
     timer serial_timer;
     serial_timer.start();
 
@@ -67,21 +64,23 @@ calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType
 
     CustomBarrier& b = args.b;
 
-    timer t;
-    t.start();
     double barrier1_time = 0;
     double barrier2_time = 0;
 
     resData.edge_arr[thread_id] = 0;
     resData.vertices_processed[thread_id] = 0; // initialized to 0, c++ does not have default 0 value
+    resData.getNextVertex_time_s[thread_id] = 0;
 
+    timer t;
+    timer t2;
     for (int i = 0; i < max_iterations; i++) {
-
         while (true) {
+            t2.start();
             uintE u = resData.getNextVertexToBeProcessed();
+            resData.getNextVertex_time_s[thread_id] += t2.stop();
+
             if (u <= -1) break;
 
-            resData.vertices_processed[thread_id]++;
             uintE out_degree = g.vertices_[u].getOutDegree();
 
             resData.edge_arr[thread_id] += out_degree;
@@ -93,18 +92,21 @@ calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType
                 while (!pr_next[v].compare_exchange_weak(temp, pr_next[v] + pr_curr[u] / out_degree));
             }
         }
-
+        t.start();
         b.wait();
         barrier1_time += t.stop();
         if (thread_id == 0)
-            resData.starting_index = g.n_;
+            resData.starting_index = g.n_ - 1;
 
         b.wait();
-        t.start();
 
         while (true) {
+            t2.start();
             uintE v = resData.getNextVertexToBeProcessed();
+            resData.getNextVertex_time_s[thread_id] += t2.stop();
+
             if (v <= -1) break;
+            resData.vertices_processed[thread_id]++;
 
             pr_next[v] = PAGE_RANK(pr_next[v]);
             // reset pr_curr for the next iteration
@@ -113,11 +115,15 @@ calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType
         }
 
         b.wait();
+        if (thread_id == 0)
+            resData.starting_index = g.n_ - 1;
+        t.start();
+        b.wait();
         barrier2_time += t.stop();
     }
 
-    resData.barrier2_time_arr[thread_id] = barrier2_time;
     resData.barrier1_time_arr[thread_id] = barrier1_time;
+    resData.barrier2_time_arr[thread_id] = barrier2_time;
 
     double time_taken = serial_timer.stop();
     resData.time_taken_s[thread_id] = time_taken;
@@ -146,29 +152,30 @@ void pageRankParallel(Graph& g, uint max_iterations, int n_workers) {
     resData.vertices_processed = new uintV[n_workers];
     resData.time_taken_s = new double[n_workers];
     resData.edge_arr = new int32_t[n_workers];
-    resData.barrier1_time_arr = new int32_t[n_workers];
-    resData.barrier2_time_arr = new int32_t[n_workers];
+    resData.barrier1_time_arr = new double[n_workers];
+    resData.barrier2_time_arr = new double[n_workers];
+    resData.getNextVertex_time_s = new double[n_workers];
 
-    resData.starting_index = g.n_;
+    resData.starting_index = g.n_ - 1;
 
     arg_struct aStruct{resData, b, g};
 
     for (int i = 0; i < n_workers; i++)
         threads[i] = std::thread{calculatingFunction, pr_curr, pr_next, &aStruct, i};
 
-    std::cout << "thread_id, num_vertices, num_edges, barrier1_time, barrier2_time, total_time\n";
+    std::cout << "thread_id, num_vertices, num_edges, barrier1_time, barrier2_time, getNextVertex_time, total_time\n";
 
     for (uint i = 0; i < n_workers; i++) {
         threads[i].join();
-        printf("%d,\t %d,\t %d,\t %d,\t %d,\t %f\n", i, resData.vertices_processed[i],
+        printf("%d,\t %d,\t %d,\t %f,\t %f,\t %f,\t %f\n", i, resData.vertices_processed[i],
                resData.edge_arr[i], resData.barrier1_time_arr[i], resData.barrier2_time_arr[i],
-               resData.time_taken_s[i]);
+               resData.getNextVertex_time_s[i], resData.time_taken_s[i]);
     }
 
 
     PageRankType sum_of_page_ranks = 0;
     for (uintV u = 0; u < n; u++)
-            sum_of_page_ranks += pr_curr[u];
+        sum_of_page_ranks += pr_curr[u];
     time_taken = t1.stop();
     std::cout << "Sum of page rank : " << sum_of_page_ranks << "\n";
     std::cout << "Time taken (in seconds) : " << time_taken << "\n";
@@ -181,19 +188,17 @@ void pageRankParallel(Graph& g, uint max_iterations, int n_workers) {
     delete[] resData.edge_arr;
     delete[] resData.barrier1_time_arr;
     delete[] resData.barrier2_time_arr;
-
+    delete[] resData.getNextVertex_time_s;
 }
 
-
 //  Granularity
-
 struct res_data_g {
     uintV* edge_arr;
-    uintV* edges_processed;
-    uintV* barrier1_time_arr;
-    uintV* barrier2_time_arr;
+    double* barrier1_time_arr;
+    double* barrier2_time_arr;
     double* time_taken_s;
     uintV* vertices_processed;
+    double* getNextVertex_time_s;
     uintV max_iterations;
 
     uintV granularity;
@@ -209,7 +214,6 @@ struct res_data_g {
     }
 };
 
-
 struct arg_struct_g {
     arg_struct_g(res_data_g& resData, CustomBarrier& b, Graph& graph) : graph(graph), b(b), resData(resData) {}
 
@@ -217,8 +221,6 @@ struct arg_struct_g {
     CustomBarrier& b;
     res_data_g& resData;
 };
-
-
 
 void*
 granularityCalculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType>* pr_next, void* data,
@@ -230,12 +232,12 @@ granularityCalculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<P
     Graph& g = args.graph;
     res_data_g& resData = args.resData;
     uintV max_iterations = resData.max_iterations;
-
     int granularity = resData.granularity;
 
     CustomBarrier& b = args.b;
 
     timer t;
+    timer t2;
     t.start();
     double barrier1_time = 0;
     double barrier2_time = 0;
@@ -245,45 +247,60 @@ granularityCalculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<P
 
     for (int i = 0; i < max_iterations; i++) {
         while (true) {
-            uintE u = resData.getNextVertexToBeProcessed();
-            if (u <= -1) break;
-            for (uintV j = u; j < u + granularity; j++) {
+            t2.start();
+            uintE ending_vertex = resData.getNextVertexToBeProcessed();
+            if (ending_vertex <= 0) break;
 
+            resData.getNextVertex_time_s[thread_id] += t2.stop();
+
+            uintV starting_vertex = (ending_vertex > 0 && ending_vertex < granularity) ? 0
+                                        : ending_vertex - granularity + 1;
+
+            for (; starting_vertex <= ending_vertex; starting_vertex++) {
                 resData.vertices_processed[thread_id]++;
+                uintE out_degree = g.vertices_[starting_vertex].getOutDegree();
+                resData.edge_arr[thread_id] += out_degree;
 
-                uintE out_degree = g.vertices_[u].getOutDegree();
-                for (uintE j = 0; j < out_degree; j++) {
-                    uintV v = g.vertices_[u].getOutNeighbor(j);
+                for (uintE k = 0; k < out_degree; k++) {
+                    uintV v = g.vertices_[starting_vertex].getOutNeighbor(k);
 
                     float temp = pr_next[v];
-                    while (!pr_next[v].compare_exchange_weak(temp, pr_next[v] + pr_curr[u] / out_degree));
+                    while (!pr_next[v].compare_exchange_weak(temp, pr_next[v] + pr_curr[starting_vertex] / out_degree));
                 }
-                if (u >= g.n_) break; // n is the total number of vertices in the graph
             }
         }
         b.wait();
         barrier1_time += t.stop();
         if (thread_id == 0)
-            resData.starting_index = g.n_;
+            resData.starting_index = g.n_ - 1;
 
         b.wait();
         t.start();
 
         while (true) {
-            uintE v = resData.getNextVertexToBeProcessed();
-            if (v <= -1) break;
+            t2.start();
+            uintE ending_vertex = resData.getNextVertexToBeProcessed();
+            resData.getNextVertex_time_s[thread_id] += t2.stop();
+            if (ending_vertex <= 0) break;
 
-            for (uintV j = v; j < v + granularity; j++) {
-                pr_next[v] = PAGE_RANK(pr_next[v]);
-                // reset pr_curr for the next iteration
-                pr_curr[v] = pr_next[v].load();
-                pr_next[v] = 0.0;
+            resData.getNextVertex_time_s[thread_id] += t2.stop();
 
-                if(v >= g.n_) break; // n is the total number of vertices in the graph
+            uintV starting_vertex = (ending_vertex > 0 && ending_vertex < granularity) ? 0
+                                                        : ending_vertex - granularity + 1;
+            for (; starting_vertex <= ending_vertex && starting_vertex < g.n_; starting_vertex++) {
+                pr_next[starting_vertex] = PAGE_RANK(pr_next[starting_vertex]);
+                pr_curr[starting_vertex] = pr_next[starting_vertex].load();
+                pr_next[starting_vertex] = 0.0;
+
+//                if (v >= g.n_) break; // n is the total number of vertices in the graph
             }
         }
         b.wait();
         barrier2_time += t.stop();
+
+        if (thread_id == 0)
+            resData.starting_index = g.n_ - 1;
+        b.wait();
     }
 }
 
@@ -309,8 +326,9 @@ void pageRankParallel(Graph& g, uint max_iterations, int n_workers, uint granula
     resData.vertices_processed = new uintV[n_workers];
     resData.time_taken_s = new double[n_workers];
     resData.edge_arr = new int32_t[n_workers];
-    resData.barrier1_time_arr = new int32_t[n_workers];
-    resData.barrier2_time_arr = new int32_t[n_workers];
+    resData.barrier1_time_arr = new double [n_workers];
+    resData.barrier2_time_arr = new double[n_workers];
+    resData.getNextVertex_time_s = new double[n_workers];
 
     resData.starting_index = g.n_ - 1;
     resData.granularity = granularity;
@@ -320,21 +338,19 @@ void pageRankParallel(Graph& g, uint max_iterations, int n_workers, uint granula
     for (int i = 0; i < n_workers; i++)
         threads[i] = std::thread{granularityCalculatingFunction, pr_curr, pr_next, &aStruct, i};
 
-    std::cout << "thread_id, num_vertices, num_edges, barrier1_time, barrier2_time, total_time\n";
+    std::cout << "thread_id, num_vertices, num_edges, barrier1_time, barrier2_time, getNextVertex_time, total_time\n";
 
     for (uint i = 0; i < n_workers; i++) {
         threads[i].join();
-        printf("%d,\t %d,\t %d,\t %d,\t %d,\t %f\n", i, resData.vertices_processed[i],
+        printf("%d,\t %d,\t %d,\t %f,\t %f,\t %f,\t %f\n", i, resData.vertices_processed[i],
                resData.edge_arr[i], resData.barrier1_time_arr[i], resData.barrier2_time_arr[i],
-               resData.time_taken_s[i]);
+               resData.getNextVertex_time_s[i], resData.time_taken_s[i]);
     }
-
 
     PageRankType sum_of_page_ranks = 0;
-    for (uintV u = 0; u < n; u++) {
+    for (uintV u = 0; u < n; u++)
         sum_of_page_ranks += pr_curr[u];
-//        std::cerr << sum_of_page_ranks << std::endl;
-    }
+
     time_taken = t1.stop();
     std::cout << "Sum of page rank : " << sum_of_page_ranks << "\n";
     std::cout << "Time taken (in seconds) : " << time_taken << "\n";
@@ -347,6 +363,7 @@ void pageRankParallel(Graph& g, uint max_iterations, int n_workers, uint granula
     delete[] resData.edge_arr;
     delete[] resData.barrier1_time_arr;
     delete[] resData.barrier2_time_arr;
+    delete[] resData.getNextVertex_time_s;
 }
 
 int main(int argc, char* argv[]) {
