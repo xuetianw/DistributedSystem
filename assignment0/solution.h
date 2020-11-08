@@ -16,13 +16,11 @@ struct res_data_struct {
     long value_produced;
     long value_consumed;
     double time_taken;
-    pthread_cond_t producer_cond;
     CircularQueue& circularQueue;
 
     // Declaration of thread condition variable
-    pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
     explicit res_data_struct(long n_items, CircularQueue& circularQueue, int id,
-                             int& active_producer_count, int& active_consumer_count, pthread_cond_t& pthread_cond_t);
+                             int& active_producer_count, int& active_consumer_count);
 
 };
 
@@ -32,8 +30,6 @@ class ProducerConsumerProblem {
     int n_consumers;
     CircularQueue production_buffer;
 
-    // Dynamic array of thread identifiers for producer and consumer threads.
-    // Use these identifiers while creating the threads and joining the threads.
     pthread_t* producer_threads;
     pthread_t* consumer_threads;
 
@@ -59,6 +55,6 @@ public:
 
     void printStats();
 
-    std::vector<res_data_struct*> consumer_res_s;
-    std::vector<res_data_struct*> producer_res_s;
+    std::vector<res_data_struct> consumer_res_s;
+    std::vector<res_data_struct> producer_res_s;
 };

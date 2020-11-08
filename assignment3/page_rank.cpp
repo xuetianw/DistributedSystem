@@ -27,8 +27,8 @@ struct res_data {
     uintV* num_vertices_arr;
     uintV* edge_arr;
     uintV* edges_processed;
-    uintV* barrier1_time_arr;
-    uintV* barrier2_time_arr;
+    double* barrier1_time_arr;
+    double* barrier2_time_arr;
     double* time_taken_s;
     uintV* vertices_processed;
     uintV max_iterations;
@@ -63,10 +63,11 @@ calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType
 
     CustomBarrier& b = args.b;
 
-    timer t;
-    t.start();
-    double barrier1_time = 0;
-    double barrier2_time = 0;
+    double barrier1_time = 0.0;
+    double barrier2_time = 0.0;
+
+    timer t1;
+    t1.start();
 
     resData.edge_arr[thread_id] = 0;
     resData.vertices_processed[thread_id] = 0; // initialized to 0, c++ does not have default 0 value
@@ -85,10 +86,12 @@ calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType
                 while (!pr_next[v].compare_exchange_weak(temp, pr_next[v] + pr_curr[u] / out_degree));
             }
         }
-        b.wait();
-        barrier1_time += t.stop();
-        t.start();
 
+
+        b.wait();
+        barrier1_time += (double) t1.stop();
+        timer t2;
+        t2.start();
         for (uintV v = starting_vertex; v <= ending_vertex; v++) {
 
             resData.vertices_processed[thread_id]++;
@@ -99,8 +102,9 @@ calculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRankType
             pr_next[v] = 0.0;
         }
 
+
         b.wait();
-        barrier2_time += t.stop();
+        barrier2_time += t2.stop();
     }
 
     resData.barrier2_time_arr[thread_id] = barrier2_time;
@@ -134,8 +138,8 @@ void pageRankVertexBasedParallel(Graph& g, int max_iterations, int n_workers) {
     resData.vertices_processed = new uintV[n_workers];
     resData.time_taken_s = new double[n_workers];
     resData.edge_arr = new int32_t[n_workers];
-    resData.barrier1_time_arr = new int32_t[n_workers];
-    resData.barrier2_time_arr = new int32_t[n_workers];
+    resData.barrier1_time_arr = new double [n_workers];
+    resData.barrier2_time_arr = new double[n_workers];
 
     timer t2;
     double partitionTime = 0.0;
@@ -159,7 +163,7 @@ void pageRankVertexBasedParallel(Graph& g, int max_iterations, int n_workers) {
 
     for (uint i = 0; i < n_workers; i++) {
         threads[i].join();
-        printf("%d,\t %d,\t %d,\t %d,\t %d,\t %f\n", i, resData.vertices_processed[i],
+        printf("%d,\t %d,\t %d,\t %f,\t %d,\t %f\n", i, resData.vertices_processed[i],
                resData.edge_arr[i], resData.barrier1_time_arr[i], resData.barrier2_time_arr[i],
                resData.time_taken_s[i]);
     }
@@ -209,8 +213,7 @@ edgeCalculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRank
 
     CustomBarrier& b = args.b;
 
-    timer t;
-    t.start();
+
     double barrier1_time = 0;
     double barrier2_time = 0;
 
@@ -232,11 +235,10 @@ edgeCalculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRank
 
         }
 
-        b.wait();
-
-        barrier1_time += t.stop();
+        timer t;
         t.start();
-
+        b.wait();
+        barrier1_time += t.stop();
 
         if (thread_id == 0) {
             for (uintV v = 0; v < g.n_; v++) {
@@ -249,7 +251,7 @@ edgeCalculatingFunction(std::atomic<PageRankType>* pr_curr, std::atomic<PageRank
                 pr_next[v] = 0.0;
             }
         }
-
+        t.start();
         b.wait();
         barrier2_time += t.stop();
     }
@@ -298,8 +300,8 @@ void pageRankEdgeBasedParallel(Graph& g, int max_iterations, int n_workers) {
     resData.num_vertices_arr = new uintV[n_workers];
     resData.time_taken_s = new double[n_workers];
     resData.edge_arr = new int32_t[n_workers];
-    resData.barrier1_time_arr = new int32_t[n_workers];
-    resData.barrier2_time_arr = new int32_t[n_workers];
+    resData.barrier1_time_arr = new double[n_workers];
+    resData.barrier2_time_arr = new double [n_workers];
     resData.edges_processed = new int32_t[n_workers];
 
     timer t2;
@@ -325,7 +327,7 @@ void pageRankEdgeBasedParallel(Graph& g, int max_iterations, int n_workers) {
 
     for (uint i = 0; i < n_workers; i++) {
         threads[i].join();
-        printf("%d,\t %d,\t %d,\t %d,\t %d,\t %f\n", i, resData.num_vertices_arr[i],
+        printf("%d,\t %d,\t %d,\t %f,\t %f,\t %f\n", i, resData.num_vertices_arr[i],
                resData.edges_processed[i], resData.barrier1_time_arr[i], resData.barrier2_time_arr[i],
                resData.time_taken_s[i]);
     }
